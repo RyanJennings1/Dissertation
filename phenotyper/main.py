@@ -4,9 +4,9 @@
   author: Ryan Jennings
   date: 2021-08-05
 """
-from typing import Dict
+from typing import Dict, Union
 
-def main(args: Dict[str, bool]) -> None:
+def main(args: Dict[str, Union[bool, str]]) -> None:
   """
   main method
   """

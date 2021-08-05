@@ -11,6 +11,8 @@ from phenotyper import __version__
 
 if __name__ == "__main__":
   PARSER = argparse.ArgumentParser()
+  PARSER.add_argument('--input', '-i', action='store', type=str,
+                      help='Input image')
   PARSER.add_argument('--version', '-v', action='store_true', help='Print version')
   ARGS = PARSER.parse_args()
 
