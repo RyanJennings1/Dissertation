@@ -10,6 +10,8 @@ import cv2
 
 import numpy as np
 
+from collections import Counter
+from itertools import takewhile
 from typing import Dict, Union
 
 from skimage.feature import peak_local_max
@@ -149,7 +151,36 @@ def opencv_watershed(masked, mask) -> JSON_TYPE:
     cv2.putText(markers_copy, string_text, (index_non_zero_markers[i][1], index_non_zero_markers[i][0]), font, 1, 255)
   markers = markers.astype(np.int32)
   segmented = cv2.watershed(masked, markers)
-  ############
-  # TODO: Figure out how to count segmented areas from here
-  ############
-  return []
+  count_segments(markers)
+  return {
+    "metadata": {},
+    "observations": {
+      "default": {
+        "estimated_object_count": {
+          "trait": "estimated object count",
+          "method": "opencv watershed",
+          "scale": "none",
+          "datatype": "<class 'int'>",
+          "value": count_segments(markers),
+          "label": "none"
+        }
+      }
+    }
+  }
+
+def count_segments(markers) -> int:
+  """
+  Count number of unique segments based on value
+
+  keyword arguments:
+  markers - numpy array with pixel segmented colour values
+
+  return: int - number of segments
+  """
+  cnt = Counter()
+  for row in markers:
+    cnt.update(row)
+  n_cnt = dict(takewhile(lambda x: x[1] >= 10, cnt.most_common()))
+  del n_cnt[1]
+  del n_cnt[-1]
+  return len(n_cnt.keys())
