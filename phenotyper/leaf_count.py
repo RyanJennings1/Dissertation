@@ -19,25 +19,9 @@ from sklearn.cluster import KMeans
 
 from plantcv import plantcv as pcv
 
+from phenotyper.pcv_options import options
+
 JSON_TYPE = Dict[str, str] # shorthand
-
-class options:
-  """
-  PlantCV options details class
-  """
-  def __init__(self, image: str) -> None:
-    """
-    init method
-
-    keyword arguments:
-    image: str - name of input file
-
-    return: None
-    """
-    self.image = image or "./img/arabidopsis.jpg"
-    self.debug = None # Set to "plot" to show each image
-    self.writeimg = False
-    self.outdir = "."
 
 def leaf_count(args: Dict[str, Union[bool, str]],
               method: str = "PLANTCV") -> JSON_TYPE:
