@@ -21,6 +21,8 @@ from phenotyper.pcv_options import options
 def colour_count(args: Dict[str, Union[str, bool]]) -> Dict[str, float]:
   """
   Find colour counts for colour hexs from image
+
+  Code modified from: https://github.com/kb22/Color-Identification-using-Machine-Learning/blob/master/Color%20Identification%20using%20Machine%20Learning.ipynb
   """
   masked_image = get_mask_of_image(args.input)
   true_colour_masked = cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB)
