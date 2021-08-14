@@ -24,19 +24,22 @@ from phenotyper.pcv_options import options
 JSON_TYPE = Dict[str, str] # shorthand
 
 def leaf_count(args: Dict[str, Union[bool, str]],
-              method: str = "PLANTCV") -> JSON_TYPE:
+               model: str = "PLANTCV") -> JSON_TYPE:
   """
   Find leaf count phenotype data from various watershed
   methods
 
   keyword arguments:
   args: Dict[str, Union[bool, str]] - CLI arguments passed in
-  method: str - which method to use for watershedding
-                PLANTCV - use PlantCV built in
-                OPENCV - use OpenCV
+  model: str - which model to use for watershedding
+               PLANTCV - use PlantCV built in
+               OPENCV - use OpenCV
 
   return: JSON_TYPE - results from watershedding as JSON
   """
+  print("args: ", args)
+  print("args.input: ", args.input)
+  threshold: int = 116
   # Code from PlantCV Watershed:
   # https://plantcv.readthedocs.io/en/stable/tutorials/watershed_segmentation_tutorial/
   pcv_args = options(image=args.input)
@@ -47,12 +50,24 @@ def leaf_count(args: Dict[str, Union[bool, str]],
   # Converting from RGB to LAB and keep green-magenta channel
   a = pcv.rgb2gray_lab(rgb_img=img, channel='a')
   # Set up a binary threshold image
-  img_binary = pcv.threshold.binary(gray_img=a, threshold=116,
+  img_binary = pcv.threshold.binary(gray_img=a, threshold=threshold,
                                     max_value=255, object_type='dark')
   # Blur image to reduce noise
   img_binary = pcv.median_blur(gray_img=img_binary, ksize=20)
   # Overlay of mask onto image
   id_objects, obj_hierarchy = pcv.find_objects(img=img, mask=img_binary)
+
+  while (not id_objects):
+    threshold += 4
+    img_binary = pcv.threshold.binary(gray_img=a, threshold=threshold,
+                                      max_value=255, object_type='dark')
+    # Blur image to reduce noise
+    img_binary = pcv.median_blur(gray_img=img_binary, ksize=20)
+    # Overlay of mask onto image
+    id_objects, obj_hierarchy = pcv.find_objects(img=img, mask=img_binary)
+  # Reset threshold
+  threshold = 116
+
   # Combine objects
   obj, mask = pcv.object_composition(img=img,
                                      contours=id_objects,
@@ -61,7 +76,7 @@ def leaf_count(args: Dict[str, Union[bool, str]],
   masked = pcv.apply_mask(img=img, mask=mask, mask_color="black")
 
   # Using OpenCV for thresholding
-  if method == "OPENCV":
+  if model == "OPENCV":
     return opencv_watershed(masked, mask)
 
   # Using PlantCV watershed functionality
