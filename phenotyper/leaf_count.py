@@ -37,8 +37,6 @@ def leaf_count(args: Dict[str, Union[bool, str]],
 
   return: JSON_TYPE - results from watershedding as JSON
   """
-  print("args: ", args)
-  print("args.input: ", args.input)
   threshold: int = 116
   # Code from PlantCV Watershed:
   # https://plantcv.readthedocs.io/en/stable/tutorials/watershed_segmentation_tutorial/
@@ -101,7 +99,9 @@ def plantcv_watershed(masked, mask) -> JSON_TYPE:
   # Save analysis results
   pcv.outputs.save_results(filename=segementation_results)
   with open(segementation_results, 'r') as results:
-      return json.loads(results.read())
+      return {
+        "count": json.loads(results.read())['observations']['default']['estimated_object_count']['value'],
+      }
 
 def opencv_watershed(masked, mask) -> JSON_TYPE:
   """
@@ -116,8 +116,9 @@ def opencv_watershed(masked, mask) -> JSON_TYPE:
   """
   # For code and detailed explanation see:
   # http://datahacker.rs/007-opencv-projects-image-segmentation-with-watershed-algorithm/
+  threshold: int = 30
   gray = cv2.cvtColor(masked, cv2.COLOR_RGB2GRAY)
-  ret, thresh_img = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY)
+  ret, thresh_img = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
   # Noise removal
   kernel = np.ones((3), np.uint8)
   opening_img = cv2.morphologyEx(thresh_img, cv2.MORPH_OPEN, kernel, iterations=9)
@@ -125,7 +126,31 @@ def opencv_watershed(masked, mask) -> JSON_TYPE:
   closing_img = cv2.morphologyEx(thresh_img, cv2.MORPH_CLOSE, kernel, iterations=4)
   dist_transform = cv2.distanceTransform(255 - closing_img, cv2.DIST_L2, 3)
   local_max_location = peak_local_max(dist_transform, min_distance=1, indices=True)
-  kmeans = KMeans(n_clusters=30)
+
+  n_increases: int = 0
+  while local_max_location.shape[0] < 30 and n_increases < 15:
+    threshold += 20
+    ret, thresh_img = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
+    # Noise removal
+    kernel = np.ones((3), np.uint8)
+    opening_img = cv2.morphologyEx(thresh_img, cv2.MORPH_OPEN, kernel, iterations=9)
+    # Noise removal
+    closing_img = cv2.morphologyEx(thresh_img, cv2.MORPH_CLOSE, kernel, iterations=4)
+    dist_transform = cv2.distanceTransform(255 - closing_img, cv2.DIST_L2, 3)
+    local_max_location = peak_local_max(dist_transform, min_distance=1, indices=True)
+    n_increases += 1
+  # Reset threshold
+  threshold = 30
+
+  num_clusters: int = 30
+  if n_increases >= 15:
+    num_clusters = local_max_location.shape[0]
+  kmeans = KMeans(n_clusters=num_clusters)
+  # If local_max_location size is 0, return 0 predictions
+  if not local_max_location.size:
+    return {
+      "count": 0
+    }
   kmeans.fit(local_max_location)
   local_max_location = kmeans.cluster_centers_.copy()
   # Kmeans is returning a float data type so we need to convert it to an int. 
@@ -152,19 +177,7 @@ def opencv_watershed(masked, mask) -> JSON_TYPE:
   segmented = cv2.watershed(masked, markers)
   count_segments(markers)
   return {
-    "metadata": {},
-    "observations": {
-      "default": {
-        "estimated_object_count": {
-          "trait": "estimated object count",
-          "method": "opencv watershed",
-          "scale": "none",
-          "datatype": "<class 'int'>",
-          "value": count_segments(markers),
-          "label": "none"
-        }
-      }
-    }
+    "count": count_segments(markers),
   }
 
 def count_segments(markers) -> int:

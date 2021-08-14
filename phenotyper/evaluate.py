@@ -48,7 +48,8 @@ def get_leaf_count_results(images_path: str,
   args = {}
   for f in files[:10]:
     input_file_data = input_file(f"{images_path}/{f}")
+    print(f"Analysing file: {input_file_data.input}")
     leaf_count_res = leaf_count(args=input_file_data,
                                 model=model)
-    predictions[f] = leaf_count_res['observations']['default']['estimated_object_count']['value']
+    predictions[f] = leaf_count_res["count"]
   return predictions
