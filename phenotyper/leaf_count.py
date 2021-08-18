@@ -9,6 +9,7 @@ import json
 import cv2
 
 import numpy as np
+import tensorflow as tf
 
 from collections import Counter
 from itertools import takewhile
@@ -16,6 +17,7 @@ from typing import Dict, Union
 
 from skimage.feature import peak_local_max
 from sklearn.cluster import KMeans
+from tensorflow import keras
 
 from plantcv import plantcv as pcv
 
@@ -42,6 +44,7 @@ def leaf_count(args: Dict[str, Union[bool, str]],
   # https://plantcv.readthedocs.io/en/stable/tutorials/watershed_segmentation_tutorial/
   pcv_args = options(image=args.input)
   pcv.params.debug = pcv_args.debug
+
   # Read in image to apply watershedding to
   ##img, path, filename = pcv.readimage(filename=pcv_args.image)
   img = cv2.imread(pcv_args.image)
@@ -76,6 +79,13 @@ def leaf_count(args: Dict[str, Union[bool, str]],
   # Using OpenCV for thresholding
   if model == "OPENCV":
     return opencv_watershed(masked, mask)
+
+  # Using ML model for thresholding
+  if model == "ML":
+    mask_path: str = "temp/mask.png"
+    cv2.imwrite(mask_path, masked)
+    print("masked: ", masked)
+    return ml_watershed(pcv_args.image, mask_path)
 
   # Using PlantCV watershed functionality
   return plantcv_watershed(masked, mask)
@@ -176,6 +186,9 @@ def opencv_watershed(masked, mask) -> JSON_TYPE:
   markers = markers.astype(np.int32)
   segmented = cv2.watershed(masked, markers)
   count_segments(markers)
+  #return {
+  #  "count": local_max_location.shape[0]
+  #}
   return {
     "count": count_segments(markers),
   }
@@ -196,3 +209,25 @@ def count_segments(markers) -> int:
   del n_cnt[1]
   del n_cnt[-1]
   return len(n_cnt.keys())
+
+def ml_watershed(image, mask) -> JSON_TYPE:
+  """
+  Apply ML watershedding model to given image to count leaves
+  """
+  print("Mask: ", mask)
+  model_path: str = "saved_models/saved_segmentation_model"
+  data_to_predict = tf.data.Dataset.from_tensor_slices(([image], [mask]))
+  data_to_predict = data_to_predict.batch(64).prefetch(1)
+  model = keras.models.load_model(model_path)
+  for im, ma in data_to_predict:
+    print("Im: ", im)
+    print("Dir im: ", dir(im))
+    print(im[0])
+    im = cv2.imread((im.numpy()).decode("utf-8"))
+    im = cv2.resize(im, (224, 224))
+    im = im.reshape(1, 224, 224, 3)
+    pred = model.predict(im)
+    print("Prediction: ", pred)
+  return {
+    "count": 0
+  }

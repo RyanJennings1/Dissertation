@@ -20,7 +20,7 @@ def evaluate() -> None:
   """
   images_path: str = "../Leaf_Dataset/images"
   truth_path: str = "../Leaf_Dataset/truth.csv"
-  pcv_res = get_leaf_count_results(images_path, "OPENCV")
+  pcv_res = get_leaf_count_results(images_path, "ML")
   print(pcv_res)
   # get_opencv_results(images_path)
 
